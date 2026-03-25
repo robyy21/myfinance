@@ -6,6 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
+CATEGORIES = ["🍔 Makan", "🚗 Transport", "☕ Nongkrong", "🛍️ Belanja"]
 user_state = {}
 FILE = "data.csv"
 BUDGET_FILE = "budget.csv"
@@ -208,21 +209,33 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ===== STATE FLOW =====
     if user_id in user_state:
-
         state = user_state[user_id]
 
-        # INPUT AMOUNT EXPENSE
+        # STEP 1: INPUT AMOUNT EXPENSE
         if state["step"] == "expense_amount":
-            state["amount"] = int(text)
+            try:
+                state["amount"] = int(text)
+            except:
+                await update.message.reply_text("Masukkan angka yang benar!")
+                return
+
             state["step"] = "expense_category"
 
-            await update.message.reply_text("Masukkan kategori:")
+            keyboard = [[cat] for cat in CATEGORIES]
+            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+            await update.message.reply_text(
+                "Pilih kategori:",
+                reply_markup=reply_markup
+            )
             return
 
-        # INPUT CATEGORY EXPENSE
+        # STEP 2: PILIH CATEGORY
         elif state["step"] == "expense_category":
             amount = state["amount"]
             category = text
+
+            category_clean = category.split(" ", 1)[-1]
 
             df = load_data()
 
@@ -230,7 +243,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "date": pd.Timestamp.now(),
                 "type": "expense",
                 "amount": amount,
-                "category": category
+                "category": category_clean
             }])
 
             df = pd.concat([df, new])
@@ -238,12 +251,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             user_state.pop(user_id)
 
-            await update.message.reply_text(f"✅ Pengeluaran: -{amount} ({category})")
+            await update.message.reply_text(f"✅ Pengeluaran: -{amount} ({category_clean})")
             return
 
-        # INPUT INCOME
+        # STEP: INCOME
         elif state["step"] == "income_amount":
-            amount = int(text)
+            try:
+                amount = int(text)
+            except:
+                await update.message.reply_text("Masukkan angka yang benar!")
+                return
 
             df = load_data()
 
