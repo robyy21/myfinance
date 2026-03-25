@@ -1,4 +1,6 @@
 from telegram import Update
+from telegram import ReplyKeyboardMarkup
+from telegram.ext import MessageHandler, filters
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -185,6 +187,41 @@ async def bulanan(update, context):
         f"📅 Bulan ini:\nIncome: {income}\nExpense: {expense}\nSisa: {income-expense}"
     )
 
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        ["💰 Income", "💸 Expense"],
+        ["📊 Saldo", "📈 Laporan"],
+        ["📊 Chart", "📅 Bulanan"]
+    ]
+
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+    await update.message.reply_text(
+        "🤖 Selamat datang di Finance Bot!\nPilih menu:",
+        reply_markup=reply_markup
+    )
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+
+    if text == "💰 Income":
+        await update.message.reply_text("Gunakan: /income 1000000")
+
+    elif text == "💸 Expense":
+        await update.message.reply_text("Gunakan: /add 25000 makan")
+
+    elif text == "📊 Saldo":
+        await saldo(update, context)
+
+    elif text == "📈 Laporan":
+        await laporan(update, context)
+
+    elif text == "📊 Chart":
+        await chart(update, context)
+
+    elif text == "📅 Bulanan":
+        await bulanan(update, context)
+
 # 🚀 RUN
 app = ApplicationBuilder().token("8140221752:AAEbxQoryG_RuM44g6XBPUx6-mC56pMEBwU").build()
 
@@ -197,5 +234,7 @@ app.add_handler(CommandHandler("chart", chart))
 app.add_handler(CommandHandler("setbudget", setbudget))
 app.add_handler(CommandHandler("export", export))
 app.add_handler(CommandHandler("bulanan", bulanan))
+app.add_handler(CommandHandler("start", start))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
 app.run_polling()
