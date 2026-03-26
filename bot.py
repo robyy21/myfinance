@@ -203,24 +203,26 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup
     )
 
-#HAPUS
-async def hapus(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#LIST
+async def list_transaksi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     df = load_data()
 
     if df.empty:
-        await update.message.reply_text("Tidak ada data")
+        await update.message.reply_text("Belum ada transaksi")
         return
 
-    df = df.iloc[:-1]  # hapus baris terakhir
-    save_data(df)
+    text = "📋 Daftar Transaksi:\n"
 
-    await update.message.reply_text("🗑️ Transaksi terakhir dihapus")
+    for i, row in df.iterrows():
+        sign = "+" if row["type"] == "income" else "-"
+        text += f"{i+1}. {sign}{row['amount']} ({row['category']})\n"
 
-#EDIT'
-async def edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(text)
+
+#HAPUS
+async def hapus(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        amount = int(context.args[0])
-        category = context.args[1]
+        index = int(context.args[0]) - 1
 
         df = load_data()
 
@@ -228,15 +230,46 @@ async def edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Tidak ada data")
             return
 
-        df.iloc[-1, df.columns.get_loc("amount")] = amount
-        df.iloc[-1, df.columns.get_loc("category")] = category
+        if index < 0 or index >= len(df):
+            await update.message.reply_text("Nomor tidak valid")
+            return
+
+        df = df.drop(index)
+        df = df.reset_index(drop=True)
 
         save_data(df)
 
-        await update.message.reply_text(f"✏️ Diupdate: {amount} ({category})")
+        await update.message.reply_text("🗑️ Transaksi berhasil dihapus")
 
     except:
-        await update.message.reply_text("Format: /edit 30000 makan")
+        await update.message.reply_text("Format: /hapus 1")
+
+#EDIT'
+async def edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        index = int(context.args[0]) - 1
+        amount = int(context.args[1])
+        category = context.args[2]
+
+        df = load_data()
+
+        if df.empty:
+            await update.message.reply_text("Tidak ada data")
+            return
+
+        if index < 0 or index >= len(df):
+            await update.message.reply_text("Nomor tidak valid")
+            return
+
+        df.loc[index, "amount"] = amount
+        df.loc[index, "category"] = category
+
+        save_data(df)
+
+        await update.message.reply_text(f"✏️ Transaksi {index+1} diupdate")
+
+    except:
+        await update.message.reply_text("Format: /edit 1 30000 makan")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
@@ -348,6 +381,7 @@ app.add_handler(CommandHandler("setbudget", setbudget))
 app.add_handler(CommandHandler("export", export))
 app.add_handler(CommandHandler("bulanan", bulanan))
 app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("list", list_transaksi))
 app.add_handler(CommandHandler("hapus", hapus))
 app.add_handler(CommandHandler("edit", edit))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
