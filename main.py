@@ -51,4 +51,4 @@ def run_web():
 # ===== RUN BARENG =====
 if __name__ == "__main__":
     threading.Thread(target=run_bot).start()
-    run_web()
+    run_bot()
