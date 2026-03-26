@@ -36,8 +36,11 @@ def index():
     <p>Expense: {expense}</p>
     """
 
+async def test(update, context):
+    await update.message.reply_text("BOT HIDUP 🔥")
 # ====== RUN BOT ======
 def run_bot():
+    print("BOT STARTING...")
     app = ApplicationBuilder().token("8140221752:AAEbxQoryG_RuM44g6XBPUx6-mC56pMEBwU").build()
 
     app.add_handler(CommandHandler("add", add))
@@ -53,6 +56,7 @@ def run_bot():
     app.add_handler(CommandHandler("list", list_transaksi))
     app.add_handler(CommandHandler("hapus", hapus))  # ✅ pindah ke sini
     app.add_handler(CommandHandler("edit", edit))    # ✅ pindah ke sini
+    app.add_handler(CommandHandler("test", test))
 
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
