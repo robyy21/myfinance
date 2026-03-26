@@ -15,13 +15,17 @@ BUDGET_FILE = "budget.csv"
 
 # INIT FILE
 if not os.path.exists(FILE):
-    pd.DataFrame(columns=["date","type","amount","category"]).to_csv(FILE,index=False)
+    pd.DataFrame(columns=["date","type","amount","category","account"]).to_csv(FILE,index=False)
+
 
 if not os.path.exists(BUDGET_FILE):
     pd.DataFrame(columns=["category","budget"]).to_csv(BUDGET_FILE,index=False)
 
 def load_data():
-    return pd.read_csv(FILE)
+    try:
+        return pd.read_csv(FILE)
+    except:
+        return pd.DataFrame(columns=["date","type","amount","category","account"])
 
 def save_data(df):
     df.to_csv(FILE,index=False)
@@ -36,7 +40,7 @@ def save_budget(df):
 async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         amount = int(context.args[0])
-        category = context.args[1]
+        category = " ".join(context.args[1:])
 
         df = load_data()
 
@@ -44,7 +48,8 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "date": pd.Timestamp.now(),
             "type": "expense",
             "amount": amount,
-            "category": category
+            "category": category,
+            "account": "Cash"
         }])
 
         df = pd.concat([df,new])
@@ -81,7 +86,8 @@ async def income(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "date": pd.Timestamp.now(),
             "type": "income",
             "amount": amount,
-            "category": "income"
+            "category": "income",
+            "account": "Cash"
         }])
 
         df = pd.concat([df,new])
@@ -167,7 +173,7 @@ async def setbudget(update, context):
 # 📁 EXPORT
 async def export(update, context):
     df = load_data()
-    file = "laporan.xlsx"
+    file = f"laporan_{update.effective_user.id}.xlsx"
     df.to_excel(file, index=False)
 
     await update.message.reply_document(document=open(file,"rb"))
@@ -299,7 +305,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # STEP 2: PILIH AKUN
         elif state["step"] == "expense_account":
-            state["account"] = text.split(" ", 1)[-1]
+            state["account"] = text.replace("💵 ", "").replace("🏦 ", "").replace("📱 ", "")
             state["step"] = "expense_category"
 
             keyboard = [[cat] for cat in CATEGORIES]
@@ -395,23 +401,3 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif text == "📅 Bulanan":
         await bulanan(update, context)
-
-# 🚀 RUN
-app = ApplicationBuilder().token("8140221752:AAEbxQoryG_RuM44g6XBPUx6-mC56pMEBwU").build()
-
-app.add_handler(CommandHandler("add", add))
-app.add_handler(CommandHandler("income", income))
-app.add_handler(CommandHandler("saldo", saldo))
-app.add_handler(CommandHandler("laporan", laporan))
-app.add_handler(CommandHandler("today", today))
-app.add_handler(CommandHandler("chart", chart))
-app.add_handler(CommandHandler("setbudget", setbudget))
-app.add_handler(CommandHandler("export", export))
-app.add_handler(CommandHandler("bulanan", bulanan))
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("list", list_transaksi))
-app.add_handler(CommandHandler("hapus", hapus))
-app.add_handler(CommandHandler("edit", edit))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
-app.run_polling()
