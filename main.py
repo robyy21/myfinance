@@ -1,3 +1,5 @@
+print("APP JALAN")
+
 import os
 from telegram.ext import ApplicationBuilder, CommandHandler
 
