@@ -41,7 +41,7 @@ async def test(update, context):
 # ====== RUN BOT ======
 def run_bot():
     print("BOT STARTING...")
-    app = ApplicationBuilder().token("8140221752:AAEbxQoryG_RuM44g6XBPUx6-mC56pMEBwU").build()
+    app = ApplicationBuilder().token(os.getenv("BOT_TOKEN")).build()
 
     app.add_handler(CommandHandler("add", add))
     app.add_handler(CommandHandler("income", income))
