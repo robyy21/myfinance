@@ -203,6 +203,41 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup
     )
 
+#HAPUS
+async def hapus(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    df = load_data()
+
+    if df.empty:
+        await update.message.reply_text("Tidak ada data")
+        return
+
+    df = df.iloc[:-1]  # hapus baris terakhir
+    save_data(df)
+
+    await update.message.reply_text("🗑️ Transaksi terakhir dihapus")
+
+#EDIT'
+async def edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        amount = int(context.args[0])
+        category = context.args[1]
+
+        df = load_data()
+
+        if df.empty:
+            await update.message.reply_text("Tidak ada data")
+            return
+
+        df.iloc[-1, df.columns.get_loc("amount")] = amount
+        df.iloc[-1, df.columns.get_loc("category")] = category
+
+        save_data(df)
+
+        await update.message.reply_text(f"✏️ Diupdate: {amount} ({category})")
+
+    except:
+        await update.message.reply_text("Format: /edit 30000 makan")
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     text = update.message.text
@@ -313,6 +348,8 @@ app.add_handler(CommandHandler("setbudget", setbudget))
 app.add_handler(CommandHandler("export", export))
 app.add_handler(CommandHandler("bulanan", bulanan))
 app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("hapus", hapus))
+app.add_handler(CommandHandler("edit", edit))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
 app.run_polling()
