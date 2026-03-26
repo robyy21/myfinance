@@ -38,7 +38,7 @@ def index():
 
 # ====== RUN BOT ======
 def run_bot():
-    app = ApplicationBuilder().token(os.getenv("BOT_TOKEN")).build()
+    app = ApplicationBuilder().token(os.getenv("8140221752:AAEbxQoryG_RuM44g6XBPUx6-mC56pMEBwU")).build()
 
     app.add_handler(CommandHandler("add", add))
     app.add_handler(CommandHandler("income", income))
