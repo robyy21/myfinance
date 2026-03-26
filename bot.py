@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import os
 
 CATEGORIES = ["🍔 Makan", "🚗 Transport", "☕ Nongkrong", "🛍️ Belanja"]
+ACCOUNTS = ["💵 Cash", "🏦 Bank", "📱 E-Wallet"]
+
 user_state = {}
 FILE = "data.csv"
 BUDGET_FILE = "budget.csv"
@@ -279,7 +281,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_id in user_state:
         state = user_state[user_id]
 
-        # STEP 1: INPUT AMOUNT EXPENSE
+        # STEP 1: INPUT AMOUNT
         if state["step"] == "expense_amount":
             try:
                 state["amount"] = int(text)
@@ -287,23 +289,30 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text("Masukkan angka yang benar!")
                 return
 
+            state["step"] = "expense_account"
+
+            keyboard = [[acc] for acc in ACCOUNTS]
+            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+            await update.message.reply_text("Pilih akun:", reply_markup=reply_markup)
+            return
+
+        # STEP 2: PILIH AKUN
+        elif state["step"] == "expense_account":
+            state["account"] = text.split(" ", 1)[-1]
             state["step"] = "expense_category"
 
             keyboard = [[cat] for cat in CATEGORIES]
             reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
-            await update.message.reply_text(
-                "Pilih kategori:",
-                reply_markup=reply_markup
-            )
+            await update.message.reply_text("Pilih kategori:", reply_markup=reply_markup)
             return
 
-        # STEP 2: PILIH CATEGORY
+        # STEP 3: PILIH KATEGORI
         elif state["step"] == "expense_category":
             amount = state["amount"]
-            category = text
-
-            category_clean = category.split(" ", 1)[-1]
+            account = state["account"]
+            category = text.split(" ", 1)[-1]
 
             df = load_data()
 
@@ -311,7 +320,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "date": pd.Timestamp.now(),
                 "type": "expense",
                 "amount": amount,
-                "category": category_clean
+                "category": category,
+                "account": account
             }])
 
             df = pd.concat([df, new])
@@ -319,10 +329,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             user_state.pop(user_id)
 
-            await update.message.reply_text(f"✅ Pengeluaran: -{amount} ({category_clean})")
+            await update.message.reply_text(
+                f"✅ -{amount} | {account} | {category}"
+            )
             return
 
-        # STEP: INCOME
+        # INCOME
         elif state["step"] == "income_amount":
             try:
                 amount = int(text)
@@ -330,13 +342,27 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text("Masukkan angka yang benar!")
                 return
 
+            state["amount"] = amount
+            state["step"] = "income_account"
+
+            keyboard = [[acc] for acc in ACCOUNTS]
+            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+            await update.message.reply_text("Pilih akun:", reply_markup=reply_markup)
+            return
+
+        elif state["step"] == "income_account":
+            account = text.split(" ", 1)[-1]
+            amount = state["amount"]
+
             df = load_data()
 
             new = pd.DataFrame([{
                 "date": pd.Timestamp.now(),
                 "type": "income",
                 "amount": amount,
-                "category": "income"
+                "category": "income",
+                "account": account
             }])
 
             df = pd.concat([df, new])
@@ -344,10 +370,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             user_state.pop(user_id)
 
-            await update.message.reply_text(f"💰 Pemasukan: +{amount}")
+            await update.message.reply_text(
+                f"💰 +{amount} | {account}"
+            )
             return
 
-    # ===== MENU BUTTON =====
+    # ===== MENU =====
     if text == "💰 Income":
         user_state[user_id] = {"step": "income_amount"}
         await update.message.reply_text("Masukkan jumlah pemasukan:")
