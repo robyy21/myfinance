@@ -1,16 +1,10 @@
 import threading
 import os
 
-# ====== IMPORT BOT ======
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
+from bot import *
 
-# IMPORT SEMUA FUNCTION BOT KAMU
-from bot import (add, income, saldo, laporan, today,
-chart, setbudget, export, bulanan,
-start, handle_message, list_transaksi, hapus, edit)
-
-# ====== IMPORT WEB ======
-from flask import Flask, render_template
+from flask import Flask
 import pandas as pd
 
 app_web = Flask(__name__)
@@ -36,37 +30,25 @@ def index():
     <p>Expense: {expense}</p>
     """
 
-async def test(update, context):
-    await update.message.reply_text("BOT HIDUP 🔥")
-# ====== RUN BOT ======
+# ===== BOT =====
 def run_bot():
+    token = os.getenv("BOT_TOKEN")
     print("BOT STARTING...")
-    app = ApplicationBuilder().token(os.getenv("BOT_TOKEN")).build()
 
-    app.add_handler(CommandHandler("add", add))
-    app.add_handler(CommandHandler("income", income))
-    app.add_handler(CommandHandler("saldo", saldo))
-    app.add_handler(CommandHandler("laporan", laporan))
-    app.add_handler(CommandHandler("today", today))
-    app.add_handler(CommandHandler("chart", chart))
-    app.add_handler(CommandHandler("setbudget", setbudget))
-    app.add_handler(CommandHandler("export", export))
-    app.add_handler(CommandHandler("bulanan", bulanan))
+    app = ApplicationBuilder().token(token).build()
+
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("list", list_transaksi))
-    app.add_handler(CommandHandler("hapus", hapus))  # ✅ pindah ke sini
-    app.add_handler(CommandHandler("edit", edit))    # ✅ pindah ke sini
-    app.add_handler(CommandHandler("test", test))
-
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     app.run_polling()
 
-# ====== RUN WEB ======
+# ===== WEB =====
 def run_web():
     port = int(os.environ.get("PORT", 5000))
+    print("WEB RUNNING ON PORT", port)
     app_web.run(host="0.0.0.0", port=port)
 
-# ====== JALANKAN BARENG ======
+# ===== RUN BARENG =====
 if __name__ == "__main__":
-    run_bot()
+    threading.Thread(target=run_bot).start()
+    run_web()
