@@ -54,7 +54,7 @@ def index():
     return f"""
     <html>
     <head>
-        <title>💰 Dashboard Finance Final</title>
+        <title>💰 Dashboard Finance PDF</title>
         <style>
             body {{
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -89,9 +89,11 @@ def index():
             th {{ background-color:#2980b9; color:white; }}
         </style>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     </head>
     <body>
-        <h1>💰 Dashboard Finance Final</h1>
+        <h1>💰 Dashboard Finance PDF</h1>
 
         <form method="get">
             <label>Bulan:</label>
@@ -105,15 +107,9 @@ def index():
         </form>
 
         <div class="cards">
-            <div class="card saldo">
-                <p>Saldo</p><div class="value">{saldo}</div>
-            </div>
-            <div class="card income">
-                <p>Income</p><div class="value">+{income}</div>
-            </div>
-            <div class="card expense">
-                <p>Expense</p><div class="value">-{expense}</div>
-            </div>
+            <div class="card saldo"><p>Saldo</p><div class="value">{saldo}</div></div>
+            <div class="card income"><p>Income</p><div class="value">+{income}</div></div>
+            <div class="card expense"><p>Expense</p><div class="value">-{expense}</div></div>
         </div>
 
         <canvas id="pieChart"></canvas>
@@ -122,10 +118,10 @@ def index():
 
         <h2>Detail Transaksi Kategori: <span id="selectedCategory">Semua</span></h2>
         <button onclick="exportCSV()">Export CSV</button>
+        <button onclick="exportPDF()">Export PDF</button>
+
         <table id="transactionTable">
-            <thead>
-                <tr><th>Tanggal</th><th>Kategori</th><th>Tipe</th><th>Jumlah</th></tr>
-            </thead>
+            <thead><tr><th>Tanggal</th><th>Kategori</th><th>Tipe</th><th>Jumlah</th></tr></thead>
             <tbody></tbody>
         </table>
 
@@ -153,19 +149,29 @@ def index():
 
             function exportCSV() {{
                 let rows = [['Tanggal','Kategori','Tipe','Jumlah']];
-                const tbody = document.querySelectorAll('#transactionTable tbody tr');
-                tbody.forEach(r => {{
+                document.querySelectorAll('#transactionTable tbody tr').forEach(r => {{
                     let cols = r.querySelectorAll('td');
                     rows.push([cols[0].innerText, cols[1].innerText, cols[2].innerText, cols[3].innerText]);
                 }});
                 let csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\\n");
-                const encodedUri = encodeURI(csvContent);
                 const link = document.createElement("a");
-                link.setAttribute("href", encodedUri);
+                link.setAttribute("href", encodeURI(csvContent));
                 link.setAttribute("download", "transaksi.csv");
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
+                document.body.appendChild(link); link.click(); link.remove();
+            }}
+
+            async function exportPDF() {{
+                const {{ jsPDF }} = window.jspdf;
+                const doc = new jsPDF('p','pt','a4');
+                const element = document.body;
+                await html2canvas(element).then(canvas => {{
+                    const imgData = canvas.toDataURL('image/png');
+                    const imgProps= doc.getImageProperties(imgData);
+                    const pdfWidth = doc.internal.pageSize.getWidth();
+                    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                    doc.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                    doc.save("dashboard.pdf");
+                }});
             }}
 
             populateTable('Semua');
@@ -189,11 +195,10 @@ def index():
                     plugins:{{ title:{{ display:true, text:'Total per Kategori (Klik untuk detail)' }} }},
                     responsive:true,
                     scales:{{y:{{beginAtZero:true}}}},
-                    onClick: (e, elements) => {{
+                    onClick:(e,elements) => {{
                         if(elements.length>0){{
                             const index = elements[0].index;
-                            const category = categoryChart.data.labels[index];
-                            populateTable(category);
+                            populateTable(categoryChart.data.labels[index]);
                         }}
                     }}
                 }}
