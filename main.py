@@ -1,6 +1,5 @@
 import threading
 import os
-
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
 from bot import *
 
@@ -19,7 +18,7 @@ def load_data_web():
 def index():
     print("WEB KEAKSES")
 
-    # Ambil filter bulan dari query params, default = semua
+    # Filter bulan
     month = request.args.get('month')
     df = load_data_web()
     if month:
@@ -41,16 +40,18 @@ def index():
     dates = df_trend.index.strftime("%Y-%m-%d").tolist()
     saldo_trend = df_trend.values.tolist()
 
-    # Total per kategori
-    category_data = df.groupby('category')['amount'].sum().to_dict()
+    # Data per kategori & detail transaksi
+    category_group = df.groupby('category')
+    category_totals = category_group['amount'].sum().to_dict()
+    category_details = {cat: group.to_dict(orient='records') for cat, group in category_group}
 
-    # Filter bulan options
     months_options = ''.join([f'<option value="{m}" {"selected" if month==str(m) else ""}>{m}</option>' for m in range(1,13)])
+    category_details_json = json.dumps(category_details, default=str)
 
     return f"""
     <html>
     <head>
-        <title>💰 Dashboard Interaktif</title>
+        <title>💰 Dashboard Interaktif Lanjutan</title>
         <style>
             body {{
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -84,11 +85,27 @@ def index():
             .saldo {{ color: #2980b9; }}
             canvas {{ margin-top: 30px; max-width: 600px; }}
             select {{ padding: 5px; margin-bottom: 20px; }}
+            table {{
+                border-collapse: collapse;
+                width: 90%;
+                margin-top: 20px;
+                background-color:white;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            }}
+            th, td {{
+                border: 1px solid #ddd;
+                padding: 8px;
+                text-align:center;
+            }}
+            th {{
+                background-color: #2980b9;
+                color: white;
+            }}
         </style>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     </head>
     <body>
-        <h1>💰 Dashboard Interaktif</h1>
+        <h1>💰 Dashboard Interaktif Lanjutan</h1>
 
         <form method="get">
             <label for="month">Filter Bulan:</label>
@@ -117,7 +134,45 @@ def index():
         <canvas id="lineChart"></canvas>
         <canvas id="categoryChart"></canvas>
 
+        <h2>Detail Transaksi Kategori: <span id="selectedCategory">Semua</span></h2>
+        <table id="transactionTable">
+            <thead>
+                <tr>
+                    <th>Tanggal</th>
+                    <th>Kategori</th>
+                    <th>Tipe</th>
+                    <th>Jumlah</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+
         <script>
+            const categoryDetails = {category_details_json};
+
+            function populateTable(category) {{
+                const tbody = document.querySelector('#transactionTable tbody');
+                tbody.innerHTML = '';
+                let rows = [];
+                if(category === 'Semua'){{
+                    for(let cat in categoryDetails){{
+                        categoryDetails[cat].forEach(d => {{
+                            rows.push(`<tr><td>${{d.date}}</td><td>${{d.category}}</td><td>${{d.type}}</td><td>${{d.amount}}</td></tr>`);
+                        }});
+                    }}
+                }} else {{
+                    categoryDetails[category].forEach(d => {{
+                        rows.push(`<tr><td>${{d.date}}</td><td>${{d.category}}</td><td>${{d.type}}</td><td>${{d.amount}}</td></tr>`);
+                    }});
+                }}
+                tbody.innerHTML = rows.join('');
+                document.getElementById('selectedCategory').innerText = category;
+            }}
+
+            populateTable('Semua');
+
+            // Pie chart
             const pieCtx = document.getElementById('pieChart').getContext('2d');
             const pieChart = new Chart(pieCtx, {{
                 type: 'pie',
@@ -128,6 +183,7 @@ def index():
                 options: {{ plugins: {{ title: {{ display:true, text:'Income vs Expense' }} }} }}
             }});
 
+            // Line chart
             const lineCtx = document.getElementById('lineChart').getContext('2d');
             const lineChart = new Chart(lineCtx, {{
                 type:'line',
@@ -138,14 +194,35 @@ def index():
                 options: {{ plugins: {{ title: {{ display:true, text:'Trend Saldo Harian' }} }} }}
             }});
 
+            // Category bar chart
             const categoryCtx = document.getElementById('categoryChart').getContext('2d');
             const categoryChart = new Chart(categoryCtx, {{
                 type:'bar',
                 data:{{
-                    labels: {list(category_data.keys())},
-                    datasets:[{{ label:'Total per Kategori', data:{list(category_data.values())}, backgroundColor:'#8e44ad' }}]
+                    labels: {list(category_totals.keys())},
+                    datasets:[{{ label:'Total per Kategori', data:{list(category_totals.values())}, backgroundColor:'#8e44ad' }}]
                 }},
-                options: {{ plugins: {{ title: {{ display:true, text:'Total per Kategori' }} }} }}
+                options: {{
+                    plugins: {{
+                        title: {{ display:true, text:'Total per Kategori (Klik untuk lihat detail)' }},
+                        tooltip: {{
+                            callbacks: {{
+                                label: function(context) {{
+                                    return context.dataset.data[context.dataIndex];
+                                }}
+                            }}
+                        }}
+                    }},
+                    responsive:true,
+                    scales: {{ y: {{ beginAtZero:true }} }},
+                    onClick: (e, elements) => {{
+                        if(elements.length > 0){{
+                            const index = elements[0].index;
+                            const category = categoryChart.data.labels[index];
+                            populateTable(category);
+                        }}
+                    }}
+                }}
             }});
         </script>
     </body>
