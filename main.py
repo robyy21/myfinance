@@ -17,9 +17,8 @@ def load_data_web():
 @app_web.route("/")
 def index():
     print("WEB KEAKSES")
-
-    # Filter bulan
     month = request.args.get('month')
+    search = request.args.get('search', '').lower()
     df = load_data_web()
     if month:
         try:
@@ -27,6 +26,10 @@ def index():
             df = df[df['date'].dt.month == month_int]
         except:
             pass
+    if search:
+        df = df[df.apply(lambda row: search in str(row['category']).lower() or 
+                                    search in str(row['type']).lower() or 
+                                    search in str(row['date']).lower(), axis=1)]
 
     if df.empty:
         return "<h2>Belum ada data</h2>"
@@ -40,7 +43,7 @@ def index():
     dates = df_trend.index.strftime("%Y-%m-%d").tolist()
     saldo_trend = df_trend.values.tolist()
 
-    # Data per kategori & detail transaksi
+    # Data kategori & detail transaksi
     category_group = df.groupby('category')
     category_totals = category_group['amount'].sum().to_dict()
     category_details = {cat: group.to_dict(orient='records') for cat, group in category_group}
@@ -51,7 +54,7 @@ def index():
     return f"""
     <html>
     <head>
-        <title>💰 Dashboard Interaktif Lanjutan</title>
+        <title>💰 Dashboard Finance Final</title>
         <style>
             body {{
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -61,72 +64,55 @@ def index():
                 align-items: center;
                 padding: 20px;
             }}
-            .cards {{
-                display: flex;
-                flex-wrap: wrap;
-                justify-content: center;
-            }}
+            .cards {{ display:flex; flex-wrap:wrap; justify-content:center; }}
             .card {{
                 background-color: white;
-                border-radius: 10px;
-                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-                padding: 30px;
-                margin: 10px;
-                text-align: center;
-                width: 200px;
+                border-radius:10px;
+                box-shadow:0 4px 8px rgba(0,0,0,0.1);
+                padding:30px;
+                margin:10px;
+                text-align:center;
+                width:200px;
             }}
-            .value {{
-                font-size: 24px;
-                font-weight: bold;
-                margin: 10px 0;
-            }}
-            .income {{ color: green; }}
-            .expense {{ color: red; }}
-            .saldo {{ color: #2980b9; }}
-            canvas {{ margin-top: 30px; max-width: 600px; }}
-            select {{ padding: 5px; margin-bottom: 20px; }}
+            .value {{ font-size:24px; font-weight:bold; margin:10px 0; }}
+            .income {{ color:green; }} .expense {{ color:red; }} .saldo {{ color:#2980b9; }}
+            canvas {{ margin-top:30px; max-width:600px; }}
+            select, input[type="text"], button {{ padding:5px; margin:5px; }}
             table {{
                 border-collapse: collapse;
                 width: 90%;
                 margin-top: 20px;
                 background-color:white;
-                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                box-shadow:0 4px 8px rgba(0,0,0,0.1);
             }}
-            th, td {{
-                border: 1px solid #ddd;
-                padding: 8px;
-                text-align:center;
-            }}
-            th {{
-                background-color: #2980b9;
-                color: white;
-            }}
+            th, td {{ border:1px solid #ddd; padding:8px; text-align:center; }}
+            th {{ background-color:#2980b9; color:white; }}
         </style>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     </head>
     <body>
-        <h1>💰 Dashboard Interaktif Lanjutan</h1>
+        <h1>💰 Dashboard Finance Final</h1>
 
         <form method="get">
-            <label for="month">Filter Bulan:</label>
-            <select id="month" name="month" onchange="this.form.submit()">
+            <label>Bulan:</label>
+            <select name="month" onchange="this.form.submit()">
                 <option value="">Semua</option>
                 {months_options}
             </select>
+            <label>Cari:</label>
+            <input type="text" name="search" value="{search}" placeholder="kategori, tipe, tanggal">
+            <button type="submit">Search</button>
         </form>
 
         <div class="cards">
             <div class="card saldo">
-                <p>Saldo</p>
-                <div class="value">{saldo}</div>
+                <p>Saldo</p><div class="value">{saldo}</div>
             </div>
             <div class="card income">
-                <p>Income</p>
-                <div class="value">+{income}</div>
+                <p>Income</p><div class="value">+{income}</div>
             </div>
             <div class="card expense">
-                <p>Expense</p>
-                <div class="value">-{expense}</div>
+                <p>Expense</p><div class="value">-{expense}</div>
             </div>
         </div>
 
@@ -135,17 +121,12 @@ def index():
         <canvas id="categoryChart"></canvas>
 
         <h2>Detail Transaksi Kategori: <span id="selectedCategory">Semua</span></h2>
+        <button onclick="exportCSV()">Export CSV</button>
         <table id="transactionTable">
             <thead>
-                <tr>
-                    <th>Tanggal</th>
-                    <th>Kategori</th>
-                    <th>Tipe</th>
-                    <th>Jumlah</th>
-                </tr>
+                <tr><th>Tanggal</th><th>Kategori</th><th>Tipe</th><th>Jumlah</th></tr>
             </thead>
-            <tbody>
-            </tbody>
+            <tbody></tbody>
         </table>
 
         <script>
@@ -155,8 +136,8 @@ def index():
                 const tbody = document.querySelector('#transactionTable tbody');
                 tbody.innerHTML = '';
                 let rows = [];
-                if(category === 'Semua'){{
-                    for(let cat in categoryDetails){{
+                if(category==='Semua') {{
+                    for(let cat in categoryDetails) {{
                         categoryDetails[cat].forEach(d => {{
                             rows.push(`<tr><td>${{d.date}}</td><td>${{d.category}}</td><td>${{d.type}}</td><td>${{d.amount}}</td></tr>`);
                         }});
@@ -170,53 +151,46 @@ def index():
                 document.getElementById('selectedCategory').innerText = category;
             }}
 
+            function exportCSV() {{
+                let rows = [['Tanggal','Kategori','Tipe','Jumlah']];
+                const tbody = document.querySelectorAll('#transactionTable tbody tr');
+                tbody.forEach(r => {{
+                    let cols = r.querySelectorAll('td');
+                    rows.push([cols[0].innerText, cols[1].innerText, cols[2].innerText, cols[3].innerText]);
+                }});
+                let csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\\n");
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", "transaksi.csv");
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+            }}
+
             populateTable('Semua');
 
-            // Pie chart
-            const pieCtx = document.getElementById('pieChart').getContext('2d');
-            const pieChart = new Chart(pieCtx, {{
-                type: 'pie',
-                data: {{
-                    labels: ['Income','Expense'],
-                    datasets:[{{data:[{income},{expense}], backgroundColor:['green','red']}}]
-                }},
-                options: {{ plugins: {{ title: {{ display:true, text:'Income vs Expense' }} }} }}
+            const pieChart = new Chart(document.getElementById('pieChart').getContext('2d'), {{
+                type:'pie',
+                data:{{ labels:['Income','Expense'], datasets:[{{data:[{income},{expense}], backgroundColor:['green','red']}}] }},
+                options:{{ plugins:{{ title:{{ display:true, text:'Income vs Expense' }} }} }}
             }});
 
-            // Line chart
-            const lineCtx = document.getElementById('lineChart').getContext('2d');
-            const lineChart = new Chart(lineCtx, {{
+            const lineChart = new Chart(document.getElementById('lineChart').getContext('2d'), {{
                 type:'line',
-                data:{{
-                    labels: {dates},
-                    datasets:[{{ label:'Saldo Harian', data:{saldo_trend}, borderColor:'#2980b9', fill:false, tension:0.3 }}]
-                }},
-                options: {{ plugins: {{ title: {{ display:true, text:'Trend Saldo Harian' }} }} }}
+                data:{{ labels:{dates}, datasets:[{{label:'Saldo Harian', data:{saldo_trend}, borderColor:'#2980b9', fill:false, tension:0.3}}] }},
+                options:{{ plugins:{{ title:{{ display:true, text:'Trend Saldo Harian' }} }} }}
             }});
 
-            // Category bar chart
-            const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-            const categoryChart = new Chart(categoryCtx, {{
+            const categoryChart = new Chart(document.getElementById('categoryChart').getContext('2d'), {{
                 type:'bar',
-                data:{{
-                    labels: {list(category_totals.keys())},
-                    datasets:[{{ label:'Total per Kategori', data:{list(category_totals.values())}, backgroundColor:'#8e44ad' }}]
-                }},
-                options: {{
-                    plugins: {{
-                        title: {{ display:true, text:'Total per Kategori (Klik untuk lihat detail)' }},
-                        tooltip: {{
-                            callbacks: {{
-                                label: function(context) {{
-                                    return context.dataset.data[context.dataIndex];
-                                }}
-                            }}
-                        }}
-                    }},
+                data:{{ labels:{list(category_totals.keys())}, datasets:[{{label:'Total per Kategori', data:{list(category_totals.values())}, backgroundColor:'#8e44ad'}}] }},
+                options:{{
+                    plugins:{{ title:{{ display:true, text:'Total per Kategori (Klik untuk detail)' }} }},
                     responsive:true,
-                    scales: {{ y: {{ beginAtZero:true }} }},
+                    scales:{{y:{{beginAtZero:true}}}},
                     onClick: (e, elements) => {{
-                        if(elements.length > 0){{
+                        if(elements.length>0){{
                             const index = elements[0].index;
                             const category = categoryChart.data.labels[index];
                             populateTable(category);
