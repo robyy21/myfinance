@@ -14,22 +14,107 @@ def load_data_web():
 
 @app_web.route("/")
 def index():
-    print("WEB KEAKSES")  # ← tambahin di sini
+    print("WEB KEAKSES")
 
     df = load_data_web()
 
     if df.empty:
-        return "Belum ada data"
+        return "<h2>Belum ada data</h2>"
 
     income = df[df["type"]=="income"]["amount"].sum()
     expense = df[df["type"]=="expense"]["amount"].sum()
     saldo = income - expense
 
+    # HTML + CSS + Chart.js
     return f"""
-    <h1>💰 Dashboard</h1>
-    <p>Saldo: {saldo}</p>
-    <p>Income: {income}</p>
-    <p>Expense: {expense}</p>
+    <html>
+    <head>
+        <title>💰 Dashboard Keuangan</title>
+        <style>
+            body {{
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background-color: #f0f2f5;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                flex-direction: column;
+                padding: 20px;
+            }}
+            .card {{
+                background-color: white;
+                border-radius: 10px;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                padding: 30px;
+                margin: 10px;
+                text-align: center;
+                width: 300px;
+            }}
+            h1 {{
+                color: #2c3e50;
+            }}
+            .value {{
+                font-size: 24px;
+                font-weight: bold;
+                margin: 10px 0;
+            }}
+            .income {{ color: green; }}
+            .expense {{ color: red; }}
+            .saldo {{ color: #2980b9; }}
+            canvas {{
+                margin-top: 30px;
+                max-width: 500px;
+            }}
+        </style>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    </head>
+    <body>
+        <h1>💰 Dashboard Keuangan</h1>
+        <div class="card saldo">
+            <p>Saldo</p>
+            <div class="value">{saldo}</div>
+        </div>
+        <div class="card income">
+            <p>Income</p>
+            <div class="value">+{income}</div>
+        </div>
+        <div class="card expense">
+            <p>Expense</p>
+            <div class="value">-{expense}</div>
+        </div>
+
+        <canvas id="myChart"></canvas>
+
+        <script>
+            const ctx = document.getElementById('myChart').getContext('2d');
+            const myChart = new Chart(ctx, {{
+                type: 'bar',
+                data: {{
+                    labels: ['Income', 'Expense'],
+                    datasets: [{{
+                        label: 'Amount',
+                        data: [{income}, {expense}],
+                        backgroundColor: ['green', 'red']
+                    }}]
+                }},
+                options: {{
+                    responsive: true,
+                    plugins: {{
+                        legend: {{ display: false }},
+                        title: {{
+                            display: true,
+                            text: 'Income vs Expense'
+                        }}
+                    }},
+                    scales: {{
+                        y: {{
+                            beginAtZero: true
+                        }}
+                    }}
+                }}
+            }});
+        </script>
+    </body>
+    </html>
     """
 
 # ===== BOT =====
@@ -38,7 +123,6 @@ def run_bot():
     print("BOT STARTING...")
 
     app = ApplicationBuilder().token(token).build()
-
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.run_polling(drop_pending_updates=True)
