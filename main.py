@@ -25,6 +25,12 @@ def index():
     expense = df[df["type"]=="expense"]["amount"].sum()
     saldo = income - expense
 
+    # Siapkan data untuk trend line
+    df['date'] = pd.to_datetime(df['date'])
+    df_trend = df.groupby('date').apply(lambda x: (x[x["type"]=="income"]["amount"].sum() - x[x["type"]=="expense"]["amount"].sum())).cumsum()
+    dates = df_trend.index.strftime("%Y-%m-%d").tolist()
+    saldo_trend = df_trend.values.tolist()
+
     # HTML + CSS + Chart.js
     return f"""
     <html>
@@ -62,7 +68,7 @@ def index():
             .saldo {{ color: #2980b9; }}
             canvas {{
                 margin-top: 30px;
-                max-width: 500px;
+                max-width: 600px;
             }}
         </style>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -82,27 +88,51 @@ def index():
             <div class="value">-{expense}</div>
         </div>
 
-        <canvas id="myChart"></canvas>
+        <canvas id="pieChart"></canvas>
+        <canvas id="lineChart"></canvas>
 
         <script>
-            const ctx = document.getElementById('myChart').getContext('2d');
-            const myChart = new Chart(ctx, {{
-                type: 'bar',
+            // Pie chart Income vs Expense
+            const pieCtx = document.getElementById('pieChart').getContext('2d');
+            const pieChart = new Chart(pieCtx, {{
+                type: 'pie',
                 data: {{
                     labels: ['Income', 'Expense'],
                     datasets: [{{
-                        label: 'Amount',
                         data: [{income}, {expense}],
                         backgroundColor: ['green', 'red']
                     }}]
                 }},
                 options: {{
-                    responsive: true,
                     plugins: {{
-                        legend: {{ display: false }},
                         title: {{
                             display: true,
                             text: 'Income vs Expense'
+                        }}
+                    }}
+                }}
+            }});
+
+            // Line chart saldo trend
+            const lineCtx = document.getElementById('lineChart').getContext('2d');
+            const lineChart = new Chart(lineCtx, {{
+                type: 'line',
+                data: {{
+                    labels: {dates},
+                    datasets: [{{
+                        label: 'Saldo Harian',
+                        data: {saldo_trend},
+                        fill: false,
+                        borderColor: '#2980b9',
+                        tension: 0.3
+                    }}]
+                }},
+                options: {{
+                    responsive: true,
+                    plugins: {{
+                        title: {{
+                            display: true,
+                            text: 'Trend Saldo Harian'
                         }}
                     }},
                     scales: {{
