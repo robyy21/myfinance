@@ -14,6 +14,7 @@ def load_data_web():
 
 @app_web.route("/")
 def index():
+     print("WEB KEAKSES")  # ← tambahin di sini
     df = load_data_web()
 
     if df.empty:
